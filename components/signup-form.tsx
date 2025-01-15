@@ -18,6 +18,8 @@ import { signUpFormSchema } from "@/lib/validation";
 import { z } from "zod";
 import { createUser } from "@/lib/actions";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { error } from "console";
 export function SignupForm({
   className,
   ...props
@@ -53,7 +55,6 @@ export function SignupForm({
 
       if (result.status === "SUCCESS") {
         localStorage.removeItem("signupFormValues");
-        router.push("/");
       }
 
       return result;

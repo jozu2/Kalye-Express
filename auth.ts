@@ -1,7 +1,8 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
-import { client } from "@/sanity/lib/client"; // Import the Sanity client
+import { client } from "./sanity/lib/client";
+import { route } from "sanity/router";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   session: {
@@ -20,14 +21,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const user = await client.fetch(
             `*[_type == "user" && email == $email][0]`,
             {
-              email: credentials.username, // Use 'username' instead of 'email'
+              email: credentials.username,
             }
           );
 
+          if (!user) {
+            const err = "No user found with this email";
+            localStorage.setItem("loginError", JSON.stringify(err));
+            throw new CredentialsSignin("No user found with this email");
+          }
+
           const isValid = await bcrypt.compare(
-            credentials.password,
+            credentials.password as string,
             user.password
           );
+          if (!isValid) {
+            throw new CredentialsSignin("Invalid password");
+          }
 
           return {
             id: user._id,
@@ -35,25 +45,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             email: user.email,
           };
         } catch (error) {
-          if (error instanceof AuthError) {
-            switch (error.type) {
-              case "CallbackRouteError":
-                if (
-                  error.cause &&
-                  typeof error.cause === "object" &&
-                  "err" in error.cause
-                ) {
-                  const cause = error.cause as { err: { code?: string } };
-                  if (cause.err && cause.err.code === "credentials") {
-                    return { error: "Invalid credentials" };
-                  }
-                }
-              default:
-                return { error: "An authentication error occurred" };
-            }
+          console.error("Error in authorize function:", error);
+          if (error instanceof CredentialsSignin) {
+            throw error;
+          } else {
+            throw new CredentialsSignin("Authentication failed");
           }
-
-          throw error;
         }
       },
     }),

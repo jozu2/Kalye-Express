@@ -47,8 +47,6 @@ export function LoginForm({
         errorMessage = "Error. Please check your email and password.";
       }
       setError(errorMessage);
-    } else {
-      router.push("/");
     }
   };
 
